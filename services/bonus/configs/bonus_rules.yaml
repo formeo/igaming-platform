@@ -1,0 +1,207 @@
+# Bonus Rules Configuration
+# This DSL defines all bonus rules for the iGaming platform
+
+bonus_rules:
+  # Welcome bonus for new players
+  - id: welcome_bonus_100
+    name: "Welcome Bonus 100%"
+    type: deposit_match
+    description: "100% match up to $500 on your first deposit"
+    match_percent: 100
+    max_bonus: 50000  # $500 in cents
+    min_deposit: 2000  # $20 minimum
+    wagering_multiplier: 35
+    max_bet_percent: 10
+    max_bet_absolute: 500  # $5 max bet while bonus active
+    eligible_games:
+      - slots
+      - table_games
+      - video_poker
+    excluded_games:
+      - live_blackjack
+      - live_baccarat
+      - craps
+    game_weights:
+      slots: 100
+      video_poker: 50
+      table_games: 10
+      roulette: 20
+    expiry_days: 30
+    active: true
+    one_time: true
+    conditions:
+      max_account_age_days: 7  # Only for new players
+
+  # Second deposit bonus
+  - id: second_deposit_50
+    name: "Second Deposit Bonus"
+    type: deposit_match
+    description: "50% match up to $250 on your second deposit"
+    match_percent: 50
+    max_bonus: 25000
+    min_deposit: 2000
+    wagering_multiplier: 30
+    max_bet_percent: 10
+    eligible_games:
+      - slots
+      - table_games
+    expiry_days: 14
+    active: true
+    one_time: true
+    conditions:
+      min_deposits_lifetime: 1  # Must have made first deposit
+      max_account_age_days: 30
+
+  # Friday reload bonus
+  - id: friday_reload
+    name: "Friday Reload"
+    type: deposit_match
+    description: "50% Friday reload bonus up to $200"
+    match_percent: 50
+    max_bonus: 20000
+    min_deposit: 3000  # $30 minimum
+    wagering_multiplier: 25
+    max_bet_percent: 15
+    eligible_games:
+      - slots
+    expiry_days: 7
+    active: true
+    one_time: false
+    schedule:
+      days_of_week:
+        - Friday
+        - Saturday
+      start_time: "00:00"
+      end_time: "23:59"
+    conditions:
+      min_deposits_lifetime: 3  # Loyal players only
+
+  # VIP exclusive bonus
+  - id: vip_weekly_bonus
+    name: "VIP Weekly Bonus"
+    type: deposit_match
+    description: "VIP exclusive 75% match up to $1000"
+    match_percent: 75
+    max_bonus: 100000
+    min_deposit: 10000  # $100 minimum
+    wagering_multiplier: 20  # Lower wagering for VIPs
+    max_bet_percent: 20
+    eligible_games:
+      - slots
+      - table_games
+      - live_casino
+    expiry_days: 14
+    active: true
+    one_time: false
+    conditions:
+      required_segment: vip
+
+  # Free spins on new game launch
+  - id: new_game_free_spins
+    name: "New Game Launch Free Spins"
+    type: free_spins
+    description: "50 free spins on Sweet Bonanza"
+    free_spins_count: 50
+    max_bonus: 5000  # Max win from spins
+    wagering_multiplier: 40
+    eligible_games:
+      - sweet_bonanza
+    expiry_days: 7
+    active: true
+    one_time: true
+    promo_code: "SWEET50"
+    schedule:
+      start_date: "2025-01-01"
+      end_date: "2025-01-31"
+
+  # No deposit bonus for verification
+  - id: kyc_bonus
+    name: "Verification Bonus"
+    type: no_deposit
+    description: "$10 free for completing verification"
+    fixed_amount: 1000  # $10
+    wagering_multiplier: 50
+    max_bet_percent: 10
+    max_bet_absolute: 100  # $1 max bet
+    eligible_games:
+      - slots
+    expiry_days: 7
+    active: true
+    one_time: true
+    conditions:
+      min_account_age_days: 0
+      max_account_age_days: 3
+
+  # Weekly cashback
+  - id: weekly_cashback
+    name: "Weekly Cashback"
+    type: cashback
+    description: "10% cashback on weekly losses up to $500"
+    cashback_percent: 10
+    max_bonus: 50000
+    wagering_multiplier: 5
+    expiry_days: 7
+    active: true
+    one_time: false
+    schedule:
+      days_of_week:
+        - Monday
+    conditions:
+      min_deposits_lifetime: 5
+
+  # High roller bonus
+  - id: high_roller_match
+    name: "High Roller Bonus"
+    type: deposit_match
+    description: "200% match for deposits over $1000"
+    match_percent: 200
+    max_bonus: 500000  # $5000
+    min_deposit: 100000  # $1000 minimum
+    wagering_multiplier: 40
+    max_bet_percent: 5
+    eligible_games:
+      - slots
+      - high_limit_tables
+    expiry_days: 21
+    active: true
+    one_time: false
+    conditions:
+      required_segment: high
+      min_deposits_lifetime: 10
+
+  # Sports freebet
+  - id: sports_freebet
+    name: "Welcome Freebet"
+    type: freebet
+    description: "$25 freebet on first sports bet"
+    fixed_amount: 2500
+    wagering_multiplier: 1  # Only need to bet once
+    expiry_days: 7
+    active: true
+    one_time: true
+    eligible_games:
+      - sportsbook
+    conditions:
+      max_account_age_days: 14
+
+  # Reload bonus with promo code
+  - id: promo_reload
+    name: "Promo Code Reload"
+    type: deposit_match
+    description: "75% match with promo code"
+    match_percent: 75
+    max_bonus: 30000
+    min_deposit: 5000
+    wagering_multiplier: 30
+    max_bet_percent: 10
+    eligible_games:
+      - slots
+      - table_games
+    expiry_days: 14
+    active: true
+    one_time: false
+    promo_code: "RELOAD75"
+    conditions:
+      min_deposits_lifetime: 2
+      excluded_segments:
+        - bonus_abuser

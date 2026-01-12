@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package risk.v1;
+
+option go_package = "github.com/igaming-platform/proto/risk/v1;riskv1";
+
+import "google/protobuf/timestamp.proto";
+
+// RiskService handles fraud detection and player predictions
+service RiskService {
+  // Real-time scoring
+  rpc ScoreTransaction(ScoreTransactionRequest) returns (ScoreTransactionResponse);
+  rpc ScoreBatch(ScoreBatchRequest) returns (ScoreBatchResponse);
+  
+  // LTV & Segmentation
+  rpc PredictLTV(PredictLTVRequest) returns (PredictLTVResponse);
+  rpc GetPlayerSegment(GetPlayerSegmentRequest) returns (GetPlayerSegmentResponse);
+  
+  // Bonus abuse detection
+  rpc CheckBonusAbuse(CheckBonusAbuseRequest) returns (CheckBonusAbuseResponse);
+  
+  // Blacklist management
+  rpc AddToBlacklist(AddToBlacklistRequest) returns (AddToBlacklistResponse);
+  rpc CheckBlacklist(CheckBlacklistRequest) returns (CheckBlacklistResponse);
+  
+  // Feature inspection (for debugging)
+  rpc GetFeatures(GetFeaturesRequest) returns (GetFeaturesResponse);
+  
+  // Configuration
+  rpc UpdateThresholds(UpdateThresholdsRequest) returns (UpdateThresholdsResponse);
+  rpc GetThresholds(GetThresholdsRequest) returns (GetThresholdsResponse);
+}
+
+// ============================================
+// Scoring Messages
+// ============================================
+
+message ScoreTransactionRequest {
+  string account_id = 1;
+  string player_id = 2;
+  int64 amount = 3;                   // Amount in cents
+  string transaction_type = 4;        // deposit, withdraw, bet
+  string currency = 5;
+  
+  // Game context (for bets)
+  string game_id = 6;
+  string round_id = 7;
+  
+  // Device/session info
+  string ip_address = 8;
+  string device_id = 9;
+  string fingerprint = 10;
+  string user_agent = 11;
+  string session_id = 12;
+  
+  // Additional context
+  map<string, string> metadata = 13;
+}
+
+message ScoreTransactionResponse {
+  int32 score = 1;                    // 0-100
+  Action action = 2;                  // APPROVE, REVIEW, BLOCK
+  repeated string reason_codes = 3;   // Triggered rules/reasons
+  
+  // Score breakdown
+  int32 rule_score = 4;               // Contribution from rules
+  float ml_score = 5;                 // ML model output (0-1)
+  
+  // Performance
+  int64 response_time_ms = 6;
+  
+  // Features used (for debugging/audit)
+  FeatureVector features = 7;
+}
+
+message ScoreBatchRequest {
+  repeated ScoreTransactionRequest transactions = 1;
+}
+
+message ScoreBatchResponse {
+  repeated ScoreTransactionResponse results = 1;
+}
+
+enum Action {
+  ACTION_UNSPECIFIED = 0;
+  ACTION_APPROVE = 1;
+  ACTION_REVIEW = 2;
+  ACTION_BLOCK = 3;
+}
+
+// ============================================
+// LTV Messages
+// ============================================
+
+message PredictLTVRequest {
+  string account_id = 1;
+}
+
+message PredictLTVResponse {
+  string account_id = 1;
+  float predicted_ltv = 2;            // In dollars
+  Segment segment = 3;
+  float churn_risk = 4;               // 0-1
+  int32 predicted_active_days = 5;
+  float confidence = 6;               // 0-1
+  string next_best_action = 7;
+  google.protobuf.Timestamp predicted_at = 8;
+}
+
+message GetPlayerSegmentRequest {
+  string account_id = 1;
+}
+
+message GetPlayerSegmentResponse {
+  string account_id = 1;
+  Segment segment = 2;
+  float ltv = 3;
+  float churn_risk = 4;
+  repeated string recommended_actions = 5;
+}
+
+enum Segment {
+  SEGMENT_UNSPECIFIED = 0;
+  SEGMENT_VIP = 1;
+  SEGMENT_HIGH = 2;
+  SEGMENT_MEDIUM = 3;
+  SEGMENT_LOW = 4;
+  SEGMENT_CHURNING = 5;
+}
+
+// ============================================
+// Bonus Abuse Messages
+// ============================================
+
+message CheckBonusAbuseRequest {
+  string account_id = 1;
+  string bonus_id = 2;                // Optional, specific bonus
+}
+
+message CheckBonusAbuseResponse {
+  bool is_abuser = 1;
+  float abuse_score = 2;              // 0-1
+  repeated string signals = 3;        // Detected patterns
+  repeated string linked_accounts = 4; // Potentially linked accounts
+}
+
+// ============================================
+// Blacklist Messages
+// ============================================
+
+message AddToBlacklistRequest {
+  string type = 1;                    // device, ip, fingerprint, email
+  string value = 2;
+  string reason = 3;
+  string created_by = 4;
+  google.protobuf.Timestamp expires_at = 5; // Optional expiry
+}
+
+message AddToBlacklistResponse {
+  bool success = 1;
+  string id = 2;
+}
+
+message CheckBlacklistRequest {
+  string device_id = 1;
+  string fingerprint = 2;
+  string ip_address = 3;
+  string email = 4;
+}
+
+message CheckBlacklistResponse {
+  bool is_blacklisted = 1;
+  repeated BlacklistMatch matches = 2;
+}
+
+message BlacklistMatch {
+  string type = 1;
+  string value = 2;
+  string reason = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+// ============================================
+// Feature Messages
+// ============================================
+
+message GetFeaturesRequest {
+  string account_id = 1;
+}
+
+message GetFeaturesResponse {
+  string account_id = 1;
+  FeatureVector features = 2;
+  google.protobuf.Timestamp computed_at = 3;
+}
+
+message FeatureVector {
+  // Velocity features
+  int32 tx_count_1m = 1;
+  int32 tx_count_5m = 2;
+  int32 tx_count_1h = 3;
+  int64 tx_sum_1h = 4;
+  float tx_avg_1h = 5;
+  
+  // Device features
+  int32 unique_devices_24h = 6;
+  int32 unique_ips_24h = 7;
+  int32 ip_country_changes_7d = 8;
+  int32 device_age_days = 9;
+  
+  // Account features
+  int32 account_age_days = 10;
+  int64 total_deposits = 11;
+  int64 total_withdrawals = 12;
+  int64 net_deposit = 13;
+  int32 deposit_count = 14;
+  int32 withdraw_count = 15;
+  
+  // Behavioral features
+  int32 time_since_last_tx_sec = 16;
+  int32 session_duration_sec = 17;
+  float avg_bet_size = 18;
+  float win_rate = 19;
+  
+  // Risk indicators
+  bool is_vpn = 20;
+  bool is_proxy = 21;
+  bool is_tor = 22;
+  bool disposable_email = 23;
+  
+  // Bonus features
+  int32 bonus_claim_count = 24;
+  float bonus_wager_completion_rate = 25;
+  bool bonus_only_player = 26;
+}
+
+// ============================================
+// Configuration Messages
+// ============================================
+
+message UpdateThresholdsRequest {
+  int32 block_threshold = 1;          // Score >= this = block
+  int32 review_threshold = 2;         // Score >= this = review
+}
+
+message UpdateThresholdsResponse {
+  bool success = 1;
+  int32 block_threshold = 2;
+  int32 review_threshold = 3;
+}
+
+message GetThresholdsRequest {}
+
+message GetThresholdsResponse {
+  int32 block_threshold = 1;
+  int32 review_threshold = 2;
+}
+
+// ============================================
+// Reason Codes
+// ============================================
+
+// Documented reason codes:
+// HIGH_VELOCITY - Too many transactions in short time
+// NEW_ACCOUNT_LARGE_TX - New account with large transaction
+// IP_COUNTRY_MISMATCH - IP country doesn't match registration
+// MULTIPLE_DEVICES - Multiple devices in 24h
+// SUSPICIOUS_PATTERN - Unusual behavior pattern
+// VPN_DETECTED - VPN/proxy detected
+// KNOWN_FRAUDSTER - Matches blacklist
+// RAPID_DEPOSIT_WITHDRAW - Quick deposit-withdraw cycle
+// BONUS_ABUSE - Bonus abuse pattern detected
+// ML_HIGH_RISK - ML model indicates high risk
+// MULTI_ACCOUNT - Linked to other accounts
+// DEVICE_FINGERPRINT_MISMATCH - Device fingerprint changed

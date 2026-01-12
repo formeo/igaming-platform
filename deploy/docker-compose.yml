@@ -1,0 +1,198 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - Main database for wallet and bonus data
+  postgres:
+    image: postgres:15-alpine
+    container_name: igaming-postgres
+    environment:
+      POSTGRES_USER: igaming
+      POSTGRES_PASSWORD: igaming_secret
+      POSTGRES_DB: igaming
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U igaming"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Feature store, caching, rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: igaming-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ - Event messaging
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: igaming-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: igaming
+      RABBITMQ_DEFAULT_PASS: igaming_secret
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ClickHouse - Analytics and batch features
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: igaming-clickhouse
+    environment:
+      CLICKHOUSE_USER: igaming
+      CLICKHOUSE_PASSWORD: igaming_secret
+      CLICKHOUSE_DB: analytics
+    ports:
+      - "8123:8123"  # HTTP
+      - "9000:9000"  # Native
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse-init.sql:/docker-entrypoint-initdb.d/init.sql
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: igaming-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+
+  # Grafana - Monitoring dashboards
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: igaming-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+
+  # Jaeger - Distributed tracing (optional, for debugging)
+  jaeger:
+    image: jaegertracing/all-in-one:1.47
+    container_name: igaming-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    ports:
+      - "16686:16686"  # UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+
+  # Wallet Service
+  wallet:
+    build:
+      context: .
+      dockerfile: services/wallet/Dockerfile
+    container_name: igaming-wallet
+    environment:
+      DATABASE_URL: postgres://igaming:igaming_secret@postgres:5432/igaming?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://igaming:igaming_secret@rabbitmq:5672/
+      RISK_SERVICE_URL: http://risk:8082
+      LOG_LEVEL: debug
+    ports:
+      - "8080:8080"  # HTTP
+      - "9080:9080"  # gRPC
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Bonus Service
+  bonus:
+    build:
+      context: .
+      dockerfile: services/bonus/Dockerfile
+    container_name: igaming-bonus
+    environment:
+      DATABASE_URL: postgres://igaming:igaming_secret@postgres:5432/igaming?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://igaming:igaming_secret@rabbitmq:5672/
+      RISK_SERVICE_URL: http://risk:8082
+      CONFIG_PATH: /app/configs/bonus_rules.yaml
+      LOG_LEVEL: debug
+    ports:
+      - "8081:8081"
+      - "9081:9081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./services/bonus/configs:/app/configs
+
+  # Risk Service
+  risk:
+    build:
+      context: .
+      dockerfile: services/risk/Dockerfile
+    container_name: igaming-risk
+    environment:
+      REDIS_URL: redis://redis:6379
+      CLICKHOUSE_URL: http://igaming:igaming_secret@clickhouse:8123
+      RABBITMQ_URL: amqp://igaming:igaming_secret@rabbitmq:5672/
+      MODEL_PATH: /app/models
+      LOG_LEVEL: debug
+      BLOCK_THRESHOLD: 80
+      REVIEW_THRESHOLD: 50
+    ports:
+      - "8082:8082"
+      - "9082:9082"
+    depends_on:
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
+    volumes:
+      - ./services/risk/models:/app/models
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  clickhouse_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  default:
+    name: igaming-network

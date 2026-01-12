@@ -1,0 +1,241 @@
+syntax = "proto3";
+
+package wallet.v1;
+
+option go_package = "github.com/igaming-platform/proto/wallet/v1;walletv1";
+
+import "google/protobuf/timestamp.proto";
+
+// WalletService handles all wallet operations
+service WalletService {
+  // Account management
+  rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
+  rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+  
+  // Transactions
+  rpc Deposit(DepositRequest) returns (DepositResponse);
+  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse);
+  rpc Bet(BetRequest) returns (BetResponse);
+  rpc Win(WinRequest) returns (WinResponse);
+  rpc Refund(RefundRequest) returns (RefundResponse);
+  
+  // History
+  rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse);
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
+}
+
+// ============================================
+// Account Messages
+// ============================================
+
+message CreateAccountRequest {
+  string player_id = 1;
+  string currency = 2; // USD, EUR, etc.
+}
+
+message CreateAccountResponse {
+  Account account = 1;
+}
+
+message GetAccountRequest {
+  oneof identifier {
+    string account_id = 1;
+    string player_id = 2;
+  }
+}
+
+message GetAccountResponse {
+  Account account = 1;
+}
+
+message GetBalanceRequest {
+  string account_id = 1;
+}
+
+message GetBalanceResponse {
+  string account_id = 1;
+  int64 balance = 2;        // Real balance in cents
+  int64 bonus = 3;          // Bonus balance in cents
+  int64 total = 4;          // Total available
+  int64 withdrawable = 5;   // Available for withdrawal
+  string currency = 6;
+}
+
+message Account {
+  string id = 1;
+  string player_id = 2;
+  string currency = 3;
+  int64 balance = 4;
+  int64 bonus = 5;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// ============================================
+// Transaction Messages
+// ============================================
+
+message DepositRequest {
+  string account_id = 1;
+  int64 amount = 2;                    // Amount in cents
+  string idempotency_key = 3;          // Unique key for idempotency
+  string payment_method = 4;           // card, crypto, bank, etc.
+  string reference = 5;                // External payment reference
+  
+  // Risk assessment data
+  string ip_address = 6;
+  string device_id = 7;
+  string fingerprint = 8;
+}
+
+message DepositResponse {
+  Transaction transaction = 1;
+  int64 new_balance = 2;
+  int32 risk_score = 3;               // 0-100, optional
+}
+
+message WithdrawRequest {
+  string account_id = 1;
+  int64 amount = 2;
+  string idempotency_key = 3;
+  string payout_method = 4;
+  string payout_details = 5;          // JSON with payout details
+  
+  // Risk assessment
+  string ip_address = 6;
+  string device_id = 7;
+}
+
+message WithdrawResponse {
+  Transaction transaction = 1;
+  int64 new_balance = 2;
+  int32 risk_score = 3;
+  string payout_status = 4;           // pending, processing, completed
+}
+
+message BetRequest {
+  string account_id = 1;
+  int64 amount = 2;
+  string idempotency_key = 3;
+  
+  // Game context
+  string game_id = 4;
+  string round_id = 5;
+  string game_category = 6;           // slots, table, live, sports
+  
+  // Risk assessment
+  string ip_address = 7;
+  string device_id = 8;
+  string session_id = 9;
+}
+
+message BetResponse {
+  Transaction transaction = 1;
+  int64 new_balance = 2;
+  int32 risk_score = 3;
+  
+  // Bonus info
+  int64 real_deducted = 4;           // Amount from real balance
+  int64 bonus_deducted = 5;          // Amount from bonus balance
+}
+
+message WinRequest {
+  string account_id = 1;
+  int64 amount = 2;
+  string idempotency_key = 3;
+  
+  // Game context
+  string game_id = 4;
+  string round_id = 5;
+  string bet_transaction_id = 6;      // Reference to original bet
+  
+  // Win details
+  string win_type = 7;                // normal, jackpot, bonus_game
+  map<string, string> metadata = 8;
+}
+
+message WinResponse {
+  Transaction transaction = 1;
+  int64 new_balance = 2;
+}
+
+message RefundRequest {
+  string account_id = 1;
+  string original_transaction_id = 2;
+  string idempotency_key = 3;
+  string reason = 4;
+}
+
+message RefundResponse {
+  Transaction transaction = 1;
+  int64 new_balance = 2;
+}
+
+// ============================================
+// History Messages
+// ============================================
+
+message GetTransactionHistoryRequest {
+  string account_id = 1;
+  int32 limit = 2;                    // Max 100
+  int32 offset = 3;
+  
+  // Filters
+  repeated string types = 4;          // deposit, withdraw, bet, win
+  google.protobuf.Timestamp from = 5;
+  google.protobuf.Timestamp to = 6;
+  string game_id = 7;
+}
+
+message GetTransactionHistoryResponse {
+  repeated Transaction transactions = 1;
+  int32 total = 2;
+  bool has_more = 3;
+}
+
+message GetTransactionRequest {
+  string transaction_id = 1;
+}
+
+message GetTransactionResponse {
+  Transaction transaction = 1;
+}
+
+message Transaction {
+  string id = 1;
+  string account_id = 2;
+  string idempotency_key = 3;
+  string type = 4;                    // deposit, withdraw, bet, win, refund
+  int64 amount = 5;
+  int64 balance_before = 6;
+  int64 balance_after = 7;
+  string status = 8;                  // pending, completed, failed, reversed
+  string reference = 9;
+  string game_id = 10;
+  string round_id = 11;
+  int32 risk_score = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp completed_at = 14;
+}
+
+// ============================================
+// Error Details
+// ============================================
+
+message WalletError {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// Error codes:
+// INSUFFICIENT_BALANCE - Not enough funds
+// ACCOUNT_NOT_FOUND - Account doesn't exist
+// ACCOUNT_SUSPENDED - Account is suspended
+// DUPLICATE_TRANSACTION - Idempotency key already used
+// RISK_BLOCKED - Transaction blocked by risk
+// RISK_REVIEW - Transaction pending review
+// INVALID_AMOUNT - Amount <= 0 or exceeds limits
+// BONUS_RESTRICTION - Violates bonus terms
