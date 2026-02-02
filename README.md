@@ -1,10 +1,17 @@
 # iGaming Platform Core
-
+[![CI](https://github.com/formeo/igaming-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/formeo/igaming-platform/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/formeo/igaming-platform)](https://goreportcard.com/report/github.com/formeo/igaming-platform)
 [![codecov](https://codecov.io/gh/formeo/igaming-platform/branch/main/graph/badge.svg)](https://codecov.io/gh/formeo/igaming-platform)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/formeo/igaming-platform)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Downloads](https://img.shields.io/github/downloads/formeo/igaming-platform/total)
+![Stars](https://img.shields.io/github/stars/formeo/igaming-platform)
 
+> Production-ready microservices platform for iGaming: Wallet Service, Bonus Engine & ML-powered Fraud Detection.
+
+---
+
+<!-- REST OF YOUR EXISTING README BELOW -->
 > Production-ready microservices platform for iGaming: Wallet Service, Bonus Engine & ML-powered Fraud Detection.
 
 ## Architecture

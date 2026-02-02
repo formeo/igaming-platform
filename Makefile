@@ -1,4 +1,4 @@
-# iGaming Platform Makefile
+cd ..# iGaming Platform Makefile
 # ======================================
 
 .PHONY: all build test lint clean proto docker infra help
