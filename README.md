@@ -1,6 +1,11 @@
 # iGaming Platform Core
 
-A production-ready microservices platform for iGaming industry, demonstrating high-load transaction processing, configurable bonus rules, and real-time fraud detection with ML.
+[![Go Report Card](https://goreportcard.com/badge/github.com/formeo/igaming-platform)](https://goreportcard.com/report/github.com/formeo/igaming-platform)
+[![codecov](https://codecov.io/gh/formeo/igaming-platform/branch/main/graph/badge.svg)](https://codecov.io/gh/formeo/igaming-platform)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/formeo/igaming-platform)](https://go.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> Production-ready microservices platform for iGaming: Wallet Service, Bonus Engine & ML-powered Fraud Detection.
 
 ## Architecture
 
