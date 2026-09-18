@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/google/uuid v1.5.0
 	github.com/jmoiron/sqlx v1.3.5
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.11.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/rabbitmq/amqp091-go v1.9.0
 	github.com/redis/go-redis/v9 v9.17.3
